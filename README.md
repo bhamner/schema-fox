@@ -1,2 +1,4 @@
 # schema-fox
-An Eloquent model trait that builds a form from a table schema
+An Laravel package that will build a web form directly from a table schema
+
+

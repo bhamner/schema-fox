@@ -1,0 +1,16 @@
+{
+    "name": "bhamner/schema-fox",
+    "description": "build forms from table schema",
+    "autoload": {
+        "psr-4": {
+            "Bhamner\\SchemaFox\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Brian Hamner",
+            "email": "brianhamner@protonmail.com"
+        }
+    ],
+    "require": {}
+}
