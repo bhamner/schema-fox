@@ -12,5 +12,7 @@
             "email": "brianhamner@protonmail.com"
         }
     ],
-    "require": {}
+    "require": {
+        "laravelcollective/html": "^6.4"
+    }
 }

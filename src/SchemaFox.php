@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Schema;
 
 
-class SchemaFox{
+trait SchemaFox{
 
 	public $values;
 
