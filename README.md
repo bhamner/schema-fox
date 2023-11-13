@@ -1,5 +1,5 @@
 
-![schema-fox](schemafox.png | width=150))
+<img alt="schemafox.png" src="https://github.com/bhamner/schema-fox/blob/main/schemafox.png?raw=true"  width="150">
 
 # schema-fox
 A Proof-of-Concept Laravel package that will build a web form directly from a table schema, alleviating the need to build forms manually. 
