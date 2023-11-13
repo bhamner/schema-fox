@@ -1,14 +1,6 @@
 
-<!-- ABOUT THE PROJECT -->
-## About The Project
-
 # schema-fox
 A POC Laravel package that will build a web form directly from a table schema, alleviating the need to build forms manually. 
-  
-
-### Built With
-* [![Laravel][Laravel.com]][Laravel-url]
- 
 
 ### Installation
 
@@ -46,4 +38,6 @@ class MyModel extends Model{
 ```php
  {!!  \App\Models\MyModel::buildForm( $url ='' , $values = NULL, $method = 'post', $files = false) !!}
 ```
-If the form is to be filled with model values to be updated, send them as an array through $values (ex $values = User::find(1)->toArray() ). If values is left null, the form will create a new record.
+If the form is to be filled with model values to be updated, send them as an array through $values 
+ex: $values = User::find(1)->toArray() 
+If $values is left null, the form will create a new record
