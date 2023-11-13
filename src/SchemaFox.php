@@ -198,13 +198,13 @@ trait SchemaFox{
 	}	
 
 	private function createSelectBox($column,$options){
-		
 		$select = '<label for="'.$column->name.'">'. $this->getLabelName($column->name).'</label><br/>'.
 			'<select id="'.$column->name.'" name="'.$column->name.'" >';
 		foreach($options as $option){
 			$select .= '<option value="'.$option.'">'.ucwords($option).'</option>';
 		}
 		$select .= '</select>';
+		return $select;
 	}	
 
 
