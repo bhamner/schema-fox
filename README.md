@@ -1,6 +1,17 @@
 
+[schema-fox](schemafox.png)
+
 # schema-fox
-A POC Laravel package that will build a web form directly from a table schema, alleviating the need to build forms manually. 
+A Proof-of-Concept Laravel package that will build a web form directly from a table schema, alleviating the need to build forms manually. 
+Integer Primary keys create hidden inputs
+Integer type columns create number inputs
+Tinyint columns create a checkbox with a 0 or 1 value
+Varchar type columns create text inputs depending on the name. 
+   If the column’s name is password, it creates a password field
+   If the column’s name is email, it creates an email field
+   If the column’s name is image, logo, or photo, it creates a file upload
+Enum column types create a select input, with the enum options as values
+
 
 ### Installation
 
