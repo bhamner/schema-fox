@@ -2,12 +2,12 @@
 
 namespace Bhamner\SchemaFox;
 
+
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Form;
-use Illuminate\Support\Facades\Input;
+use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Schema;
 
@@ -16,7 +16,10 @@ trait SchemaFox{
 
 	public $values;
 
-	public function getSchema($table){		
+	public function getSchema($table){	
+		$default_connection = Config::get('database.default');
+		$database_config = 'database.connections.'.$default_connection.'.database';
+
 		return DB::select('SELECT 
 				column_schema.column_name as name,
 				column_schema.character_maximum_length as max_length, 
@@ -36,7 +39,7 @@ trait SchemaFox{
 				ON key_usage.column_name = column_schema.column_name
 				AND key_usage.table_name = column_schema.table_name
 				AND key_usage.table_schema = column_schema.table_schema
-				WHERE column_schema.table_name = "'. $table .'" and column_schema.table_schema = "'.Config::get('database.connections.production.database').'"');
+				WHERE column_schema.table_name = "'. $table .'" and column_schema.table_schema = "'.Config::get($database_config).'"');
 	}
 
 	public static function getMap(){
@@ -48,7 +51,7 @@ trait SchemaFox{
 	}
 
 	public static function getInputs($values = null){
-		if(is_null($values)){ $values = Input::old(); }
+		if(is_null($values)){ $values = Request::old(); }
 		$self = new static;
 		$table = $self->getTable();
 		$self->values = $values;
@@ -62,26 +65,29 @@ trait SchemaFox{
 		return array_values(array_filter($mapped));
 	}
 
-	public static function form($url = '', $values = NULL, $method = 'post', $files = false){
+	public static function buildform($url = '', $values = NULL, $method = 'post', $files = false){
         $self = new static;
         $builder = [];
-        $builder[] = Form::open(array('url' => $url,'method' => $method,'files' => $files));
+		$formopen = '<form method="'.$method.'" action="'.$url.'"'; 
+			if(strtolower($method == "post") && $files !== false ){ $formopen .= ' enctype="multipart/form-data"'; } 
+		$formopen .= '>  <input type="hidden" name="_token" value="'.csrf_token().'">';
+
+		$builder[] = $formopen;
         $formInputs = self::getInputs($values);
         $errors = Session::get('errors', new MessageBag);
         $model = get_class($self);
         foreach($formInputs as $formgroup){
-        	$builder[] = '<div class="form-group">';
+        	$builder[] = '<br/>';
         	$builder[] = $formgroup->input;
             if( $formgroup->comment ){
-                 $builder[] = '<span>'. $formgroup->comment .'"</span>';
+                 $builder[] = '<br/><span><small>'. $formgroup->comment .'</small></span>';
             }
             if($errors->has($formgroup->name)){
-            	$builder[] = $errors->first($formgroup->name, '<span style="color:red">:message</span>');
+            	$builder[] = $errors->first($formgroup->name, '<br/><span style="color:red">:message</span>');
         	}
-            $builder[] = '</div>';
         }
-        $builder[] = Form::submit('Submit',array('class'=>'btn btn-primary'));
-        $builder[] = Form::close();
+        $builder[] = '<br/><button type="submit" value="Submit">Submit</button>';
+        $builder[] = '</form>';
         return implode('', $builder);
     }
 
@@ -164,22 +170,41 @@ trait SchemaFox{
 	 */ 
 
 	private function createTextArea($column, $rows = 5){
-		return Form::label( $column->name, $this->getLabelName($column->name)).
-			   Form::textarea($column->name, $this->getColumnValues($column->name), $attributes = array("class"=>"form-control","rows" => $rows, "maxlength" => $column->max_length));
-		
+		return '<label for="'.$column->name.'">'. $this->getLabelName($column->name).'</label><br/>'.
+			'<textarea id="'.$column->name.'" name="'.$column->name.'" rows="'.$rows.'" maxlength="'.$column->max_length.'">'.$this->getColumnValues($column->name).'</textarea>';
 	}
 
-	private function createInputField($column, $type, $option = array()){
-		return Form::label( $column->name, $this->getLabelName($column->name)).
-			   Form::input($type, $column->name, $this->getColumnValues($column->name), $option);
+	private function createInputField($column, $type){
+		return '<label for="'.$column->name.'">'. $this->getLabelName($column->name).'</label><br/>'.
+			'<input type="'.$type.'"id="'.$column->name.'" name="'.$column->name.'" maxlength="'.$column->max_length.'">'.$this->getColumnValues($column->name).'</input>';
 	}	
 
 	private function createDateField($column, $type){
 		return $this->createInputField($column, $type);
 	}	
 
+	private function createHiddenInput($column){
+		return '<input type="hidden" id="'.$column->name.'" name="'.$column->name.'" maxlength="'.$column->max_length.'">'.$this->getColumnValues($column->name).'</input>';
+	}	
+
 	private function createNumberRange($column, $min, $max){
-		return $this->createInputField($column, 'number' ,  $attributes = array("class"=>"form-control", "min" => $min, "max" => $max));
+		return '<label for="'.$column->name.'">'. $this->getLabelName($column->name).'</label><br/>'.
+			'<input type="number" id="'.$column->name.'" name="'.$column->name.'" min="'.$min.'" max="'.$max.'" maxlength="'.$column->max_length.'">'.$this->getColumnValues($column->name).'</input>';
+	}	
+
+	private function createCheckBoxes($column){
+		return  '<label for="'.$column->name.'">'. $this->getLabelName($column->name).'</label><br/>'.
+				'<input type="checkbox" id="'.$column->name.'" name="'.$column->name.'" value="1">'.$this->getColumnValues($column->name) > 0 .'</input>';
+	}	
+
+	private function createSelectBox($column,$options){
+		
+		$select = '<label for="'.$column->name.'">'. $this->getLabelName($column->name).'</label><br/>'.
+			'<select id="'.$column->name.'" name="'.$column->name.'" >';
+		foreach($options as $option){
+			$select .= '<option value="'.$option.'">'.ucwords($option).'</option>';
+		}
+		$select .= '</select>';
 	}	
 
 
@@ -191,12 +216,11 @@ trait SchemaFox{
 	private function map_int($column){
 		$column->input = $this->createNumberRange($column, "-2,147,483,648", "2,147,483,647");
 		if($column->constraint_name == "PRIMARY"){
-			$column->input = Form::hidden($column->name, $this->getColumnValues($column->name));
+			$column->input = $this->createHiddenInput($column);
 		}
 		if(!is_null($column->ref_table_name)){
 			$options = $this->getRelatives($column);
-			$column->input = Form::label( $column->name, $this->getLabelName($column->name)).
-			          		 Form::select($column->name, $options,$this->getColumnValues($column->name),array("class"=>"form-control"));
+			$column->input = $this->createSelectBox($column,$options);
 		}
 		return $column;
 	}
@@ -204,12 +228,11 @@ trait SchemaFox{
 	private function map_integer($column){
 		$column->input = $this->createNumberRange($column, "-2,147,483,648", "2,147,483,647");
 		if($column->constraint_name == "PRIMARY"){
-			$column->input = Form::hidden($column->name, $this->getColumnValues($column->name)) ;
+			$column->input = $this->createHiddenInput($column);
 		}
 		if(!is_null($column->ref_table_name)){
 			$options = $this->getRelatives($column);
-			$column->input = Form::label( $column->name, $this->getLabelName($column->name)).
-			          		 Form::select($column->name,$options,$this->getColumnValues($column->name),array("class"=>"form-control"));
+			$column->input = $this->createSelectBox($column,$options);
 		}
 		return $column;
 	}
@@ -217,7 +240,7 @@ trait SchemaFox{
 	private function map_tinyint($column){
 		$column->input = $this->createNumberRange($column, "-128", "127");
 		if($column->column_info == "tinyint(1)"){
-			$column->input = "<label>" . Form::checkbox($column->name, 1, $this->getColumnValues($column->name) > 0) ." ". $this->getLabelName($column->name) . "</label>";
+			$column->input = $this->createCheckBoxes($column);
 		}
 		return $column;
 	}
@@ -268,22 +291,22 @@ trait SchemaFox{
 
 		switch ($column->name) {
 			case Str::is('*password*', $column->name):
-				$column->input = $this->createInputField($column, 'password', array( "class"=>"form-control","maxlength" => $column->max_length));
+				$column->input = $this->createInputField($column, 'password');
 
 				break;
 
 			case Str::is('*email*', $column->name):
-				$column->input = $this->createInputField($column, 'email', array( "class"=>"form-control","maxlength" => $column->max_length));
+				$column->input = $this->createInputField($column, 'email');
 
 				break;
 
 			case Str::is('*phone*', $column->name):
-				$column->input = $this->createInputField($column, 'text', array( "id"=>"phone-ex", "class"=>"form-control"));
+				$column->input = $this->createInputField($column, 'text');
 
 				break;
 
 			case Str::is('*url*', $column->name):
-				$column->input = $this->createInputField($column, 'url', array( "class"=>"form-control","maxlength" => $column->max_length));
+				$column->input = $this->createInputField($column, 'url');
 
 				break;
 
@@ -304,7 +327,7 @@ trait SchemaFox{
 
 
 			default:
-				$column->input = $this->createInputField($column, 'text', array( "class"=>"form-control","autocomplete"=>"off","maxlength" => $column->max_length));
+				$column->input = $this->createInputField($column, 'text');
 		}
 
 
@@ -327,7 +350,7 @@ trait SchemaFox{
 	}
 
 	private function map_tinytext($column){
-		$column->input = $this->createInputField($column, 'text', array( "class"=>"form-control","maxlength" => $column->max_length));
+		$column->input = $this->createInputField($column, 'text');
 		return $column;
 	}
 
@@ -409,8 +432,7 @@ trait SchemaFox{
 
 		$enumValues = str_replace(array("(", ")" , "'"), '', substr($column->column_info, 4));
 		$options = explode(',',$enumValues);
-		$column->input = Form::label( $column->name, $this->getLabelName($column->name)).
-						 Form::select($column->name,array_combine($options, $options),$this->getColumnValues($column->name));
+		$column->input = $this->createSelectBox($column,$options);
 
 		return $column;
 	}
@@ -420,10 +442,9 @@ trait SchemaFox{
 		$setValues = str_replace(array("(", ")" , "'"), '', substr($column->column_info, 4));
 		$options = explode(',',$setValues);
 		foreach($options as $option){
-			$inputs[]= Form::checkbox($column->name, $option, $this->getColumnValues($column->name) > 0).
-					   Form::label($option, $this->getLabelName($column->name));
+			$inputs[]= $this->createCheckBoxes($column);
 		}
-		$column->input = Form::label($column->name, $this->getLabelName($column->name)). implode(' ',$inputs);
+		// $column->input = Form::label($column->name, $this->getLabelName($column->name)). implode(' ',$inputs);
 
 		return $column;
 	}
@@ -435,8 +456,7 @@ trait SchemaFox{
 	 */
 
 	private function map_point($column){
-		$column->input = Form::label( $column->name, $this->getLabelName($column->name)).
-						 Form::text($column->name, $this->getColumnValues($column->name),array( "class"=>"form-control","maxlength"=>$column->max_length));
+		$column->input = $this->createInputField($column, 'text');
 		return $column;
 	}
 
